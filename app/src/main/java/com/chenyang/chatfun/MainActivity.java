@@ -13,11 +13,14 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 
+import com.ashokvarma.bottomnavigation.BadgeItem;
 import com.ashokvarma.bottomnavigation.BottomNavigationBar;
 import com.ashokvarma.bottomnavigation.BottomNavigationItem;
 import com.chenyang.chatfun.utils.FragmentFactory;
+import com.chenyang.chatfun.view.AddFriendActivity;
 import com.chenyang.chatfun.view.BaseActivity;
 import com.chenyang.chatfun.view.BaseFragment;
+import com.hyphenate.chat.EMClient;
 
 import java.util.List;
 
@@ -30,6 +33,7 @@ public class MainActivity extends BaseActivity {
     private Toolbar toolbar;
     private TextView tv_title;
     private BottomNavigationBar bottomNavigationBar;
+    private BadgeItem badgeItem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,12 +67,18 @@ public class MainActivity extends BaseActivity {
     }
 
     private void initBottomNavigationBar() {
-        BottomNavigationItem item = new BottomNavigationItem(R.mipmap.conversation_selected_2, "消息");
+        BottomNavigationItem conversationItem = new BottomNavigationItem(R.mipmap.conversation_selected_2, "消息");
+        //BadgeItem 底部导航图标 右上角的圆圈文字
+        badgeItem = new BadgeItem();
+        updateBadgeItem();
+        //右上角的圆圈文字 显示出来
+        conversationItem.setBadgeItem(badgeItem);
+
 //        item.setActiveColor(getResources().getColor(R.color.btn_normal));
 //        item.setInActiveColor(getResources().getColor(R.color.inactive));
-        bottomNavigationBar.addItem(item);
+        bottomNavigationBar.addItem(conversationItem);
 
-        item = new BottomNavigationItem(R.mipmap.contact_selected_2, "联系人");
+        BottomNavigationItem item = new BottomNavigationItem(R.mipmap.contact_selected_2, "联系人");
 //        item.setActiveColor(getResources().getColor(R.color.btn_normal));
 //        item.setInActiveColor(getResources().getColor(R.color.inactive));
         bottomNavigationBar.addItem(item);
@@ -142,7 +152,7 @@ public class MainActivity extends BaseActivity {
         int itemId = item.getItemId();
         switch (itemId){
             case R.id.menu_item_addfriend:
-                showToast("添加好友");
+                startActivity(AddFriendActivity.class,false);
                 break;
             case R.id.menu_item_scan:
                 showToast("扫一扫");
@@ -156,4 +166,20 @@ public class MainActivity extends BaseActivity {
         }
         return super.onOptionsItemSelected(item);
     }
+
+    public void updateBadgeItem() {
+        //获取所有的未读条目数量
+        int unreadMessageCount = EMClient.getInstance().chatManager().getUnreadMessageCount();
+        if(unreadMessageCount==0){
+            badgeItem.hide(true);
+        }else if(unreadMessageCount>99){
+            badgeItem.show(true);
+            badgeItem.setText(String.valueOf(99));
+        }else{
+            badgeItem.show(true);
+            badgeItem.setText(String.valueOf(unreadMessageCount));
+        }
+
+    }
+
 }

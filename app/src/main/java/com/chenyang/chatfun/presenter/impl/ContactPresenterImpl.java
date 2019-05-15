@@ -33,18 +33,53 @@ public class ContactPresenterImpl implements ContactPresenter {
         getContactsFromServer();
     }
 
+    @Override
+    public void updateContact() {
+        getContactsFromServer();
+    }
+
+    @Override
+    public void deleteContact(final String username) {
+        ThreadUtils.runOnNonUIThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    EMClient.getInstance().contactManager().deleteContact(username);
+                    ThreadUtils.runOnMainThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            contactView.onDeleteContact(true,null);
+                        }
+                    });
+                } catch (final HyphenateException e) {
+                    e.printStackTrace();
+                    ThreadUtils.runOnMainThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            contactView.onDeleteContact(false,e.getMessage());
+                        }
+                    });
+                }
+            }
+        });
+
+    }
+
     public void getContactsFromServer() {
         ThreadUtils.runOnNonUIThread(new Runnable() {
             @Override
             public void run() {
                 try {
                     final List<String> contactList = EMClient.getInstance().contactManager().getAllContactsFromServer();
+                    //获取到所有联系人之后 需要进行排序
                     Collections.sort(contactList, new Comparator<String>() {
                         @Override
                         public int compare(String o1, String o2) {
                             return o1.compareTo(o2);
                         }
                     });
+                    //获取数据后 保存到数据库
+                    DBUtils.updateContactFromEMServer(EMClient.getInstance().getCurrentUser(),contactList);
                     ThreadUtils.runOnMainThread(new Runnable() {
                         @Override
                         public void run() {

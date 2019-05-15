@@ -2,6 +2,9 @@ package com.chenyang.chatfun.utils;
 
 import android.text.TextUtils;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 /**
  * Created by fullcircle on 2016/12/31.
  */
@@ -43,4 +46,10 @@ public class StringUtils {
             return text.substring(0,1).toUpperCase();
         }
     }
+
+    public static String getDate(Date date){
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+        return format.format(date);
+    }
+
 }
