@@ -8,4 +8,4 @@
 5. 消息推送
 6. 单聊功能
 ## 效果图如下 ##
-![](https://i.imgur.com/wV2rnG7.gif)
+![Alt Text](https://media.giphy.com/media/TerBPgBjyYnWmmwd5r/giphy.gif) 
