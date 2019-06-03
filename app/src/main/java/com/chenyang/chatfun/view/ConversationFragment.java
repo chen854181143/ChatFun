@@ -21,6 +21,7 @@ import com.chenyang.chatfun.view.ChatActivity;
 import com.hyphenate.chat.EMClient;
 import com.hyphenate.chat.EMConversation;
 import com.hyphenate.chat.EMMessage;
+
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
@@ -41,7 +42,7 @@ public class ConversationFragment extends BaseFragment implements ConversationVi
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_conversation,null);
+        return inflater.inflate(R.layout.fragment_conversation, null);
     }
 
     @Override
@@ -58,8 +59,8 @@ public class ConversationFragment extends BaseFragment implements ConversationVi
         adapter.setOnItemClickListener(new ConversationAdapter.onAddItemClickListener() {
             @Override
             public void onConversationClick(View v, String username) {
-                Intent intent = new Intent(getContext(),ChatActivity.class);
-                intent.putExtra("contact",username);
+                Intent intent = new Intent(getContext(), ChatActivity.class);
+                intent.putExtra("contact", username);
                 startActivity(intent);
             }
         });
@@ -84,8 +85,10 @@ public class ConversationFragment extends BaseFragment implements ConversationVi
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onGetMessageEvent(List<EMMessage> list){
+    public void onGetMessageEvent(List<EMMessage> list) {
         presenter.getConversations();
+        MainActivity activity = (MainActivity) getActivity();
+        activity.updateBadgeItem();
     }
 
     @Override
@@ -104,5 +107,7 @@ public class ConversationFragment extends BaseFragment implements ConversationVi
     public void onResume() {
         super.onResume();
         presenter.getConversations();
+        MainActivity activity = (MainActivity) getActivity();
+        activity.updateBadgeItem();
     }
 }

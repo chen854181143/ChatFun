@@ -3,14 +3,18 @@ package com.chenyang.chatfun;
 import android.app.ActivityManager;
 import android.app.Application;
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
 import android.media.AudioManager;
 import android.media.SoundPool;
+import android.os.Build;
+import android.support.v4.app.NotificationCompat;
 
 import com.avos.avoscloud.AVOSCloud;
 import com.chenyang.chatfun.db.DBUtils;
@@ -34,6 +38,8 @@ import org.greenrobot.eventbus.EventBus;
 import java.util.Iterator;
 import java.util.List;
 
+import static com.avos.avoscloud.AVOSCloud.applicationContext;
+
 
 /**
  * Created by fullcircle on 2016/12/31.
@@ -42,14 +48,16 @@ public class MyApplication extends Application {
     private int foregoundSound;
     private int backgoundSound;
     private SoundPool soundPool;
+    private static MyApplication mContext;
 
     @Override
     public void onCreate() {
         super.onCreate();
+        mContext = MyApplication.this;
         //初始化环信
         initEaseMobe();
         //初始化leancloud
-        AVOSCloud.initialize(this,"SWusYl3FEB5BnMA4RK3MRN01-gzGzoHsz","VmtGPkH7YcrlGuVUKOS76FmR");
+        AVOSCloud.initialize(this, "SWusYl3FEB5BnMA4RK3MRN01-gzGzoHsz", "VmtGPkH7YcrlGuVUKOS76FmR");
 //        AVOSCloud.setDebugLogEnabled(true);
         //初始化数据库
         DBUtils.initDBUtils(this);
@@ -61,6 +69,10 @@ public class MyApplication extends Application {
         EMClient.getInstance().addConnectionListener(new MyConnectionListener());
     }
 
+    public static MyApplication getInstance() {
+        return mContext;
+    }
+
     private void initEaseMobe() {
         EMOptions options = new EMOptions();
         // 默认添加好友时，是不需要验证的，改成需要验证
@@ -68,11 +80,11 @@ public class MyApplication extends Application {
 
         int pid = android.os.Process.myPid();
         String processAppName = getAppName(pid);
-       // 如果APP启用了远程的service，此application:onCreate会被调用2次
-       // 为了防止环信SDK被初始化2次，加此判断会保证SDK被初始化1次
+        // 如果APP启用了远程的service，此application:onCreate会被调用2次
+        // 为了防止环信SDK被初始化2次，加此判断会保证SDK被初始化1次
         // 默认的APP会在以包名为默认的process name下运行，如果查到的process name不是APP的process name就立即返回
 
-        if (processAppName == null ||!processAppName.equalsIgnoreCase(this.getPackageName())) {
+        if (processAppName == null || !processAppName.equalsIgnoreCase(this.getPackageName())) {
             // Log.e(TAG, "enter the service process!");
 
             // 则此application::onCreate 是被service 调用的，直接返回
@@ -115,14 +127,14 @@ public class MyApplication extends Application {
             @Override
             public void onContactDeleted(String username) {
                 //被删除时回调此方法 通过evnetbus发布消息
-                EventBus.getDefault().post(new ContactChangeEvent(username,false));
+                EventBus.getDefault().post(new ContactChangeEvent(username, false));
             }
 
 
             @Override
             public void onContactAdded(String username) {
                 //增加了联系人时回调此方法
-                EventBus.getDefault().post(new ContactChangeEvent(username,true));
+                EventBus.getDefault().post(new ContactChangeEvent(username, true));
             }
         });
     }
@@ -154,12 +166,12 @@ public class MyApplication extends Application {
                 //收到消息
                 EventBus.getDefault().post(list);
                 //获取应用处于前台还是后台的状态
-                if(isInBackgoundState()){
-                    soundPool.play(backgoundSound,1,1,0,0,1);
+                if (isInBackgoundState()) {
+                    soundPool.play(backgoundSound, 1, 1, 0, 0, 1);
                     //发送通知
                     sendNotification(list.get(0));
-                }else{
-                    soundPool.play(foregoundSound,1,1,0,0,1);
+                } else {
+                    soundPool.play(foregoundSound, 1, 1, 0, 0, 1);
                 }
             }
 
@@ -192,40 +204,124 @@ public class MyApplication extends Application {
     }
 
     private void sendNotification(EMMessage message) {
-        Notification.Builder builder = new Notification.Builder(getApplicationContext());
-        //设置通知点击之后可以自动消失
-        builder.setAutoCancel(true);
-        //设置通知的小图标
-        builder.setSmallIcon(R.mipmap.message);
-        //设置通知的大标题
-        builder.setContentTitle("您有一条新消息需要处理");
         //消息的内容
         EMTextMessageBody body = (EMTextMessageBody) message.getBody();
-        //把消息的内容设置到通知的内容中
-        builder.setContentText(body.getMessage());
-        //设置一个大图标
-        builder.setLargeIcon(BitmapFactory.decodeResource(getResources(),R.mipmap.avatar3));
-        builder.setContentInfo("来自"+message.getUserName());
+        String id = "channel_001";
+        String name = "name";
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        Notification notification = null;
+
         //创建要打开的activity对应的意图
-        Intent mainActivityIntent = new Intent(getApplicationContext(),MainActivity.class);
-        Intent chatActivityIntent = new Intent(getApplicationContext(),ChatActivity.class);
-        chatActivityIntent.putExtra("contact",message.getUserName());
-        Intent[] intents = new Intent[]{mainActivityIntent,chatActivityIntent};
+        Intent mainActivityIntent = new Intent(getApplicationContext(), MainActivity.class);
+        Intent chatActivityIntent = new Intent(getApplicationContext(), ChatActivity.class);
+        chatActivityIntent.putExtra("contact", message.getUserName());
+        Intent[] intents = new Intent[]{mainActivityIntent, chatActivityIntent};
         //通过pendingIntent 延迟执行的意图  来处理通知的点击事件
-        PendingIntent pendingItent = PendingIntent.getActivities(getApplicationContext(),1,intents,PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent pendingItent = PendingIntent.getActivities(getApplicationContext(), 1, intents, PendingIntent.FLAG_UPDATE_CURRENT);
         //给通知设置点击事件
-        builder.setContentIntent(pendingItent);
-        //创建notification
-        Notification notification = builder.build();
-        //通过 NotificationManager 发送通知
-        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        manager.notify(1,notification);
+//        builder.setContentIntent(pendingItent);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel mChannel = new NotificationChannel(id, name, NotificationManager.IMPORTANCE_LOW);
+            notificationManager.createNotificationChannel(mChannel);
+            notification = new Notification.Builder(this)
+                    .setChannelId(id)
+                    .setContentTitle("您有一条新消息需要处理")
+                    .setContentText(body.getMessage())
+                    .setContentIntent(pendingItent)
+                    .setSmallIcon(R.mipmap.message).build();
+        } else {
+            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
+                    .setContentTitle("您有一条新消息需要处理")
+                    .setContentText(body.getMessage())
+                    .setSmallIcon(R.mipmap.message)
+                    .setContentIntent(pendingItent)
+                    .setOngoing(true)
+                    .setChannelId(id);//无效
+            notification = notificationBuilder.build();
+        }
+        notificationManager.notify(1, notification);
+
+
+
+
+
+        /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            //Android 9.0
+            Notification.Builder builder = new Notification.Builder(getApplicationContext());
+            //设置通知点击之后可以自动消失
+            builder.setAutoCancel(true);
+            //设置通知的小图标
+            builder.setSmallIcon(R.mipmap.message);
+            //设置通知的大标题
+            builder.setContentTitle("您有一条新消息需要处理");
+            //消息的内容
+            EMTextMessageBody body = (EMTextMessageBody) message.getBody();
+            //把消息的内容设置到通知的内容中
+            builder.setContentText(body.getMessage());
+            //设置一个大图标
+            builder.setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.avatar3));
+            builder.setContentInfo("来自" + message.getUserName());
+            //创建要打开的activity对应的意图
+            Intent mainActivityIntent = new Intent(getApplicationContext(), MainActivity.class);
+            Intent chatActivityIntent = new Intent(getApplicationContext(), ChatActivity.class);
+            chatActivityIntent.putExtra("contact", message.getUserName());
+            Intent[] intents = new Intent[]{mainActivityIntent, chatActivityIntent};
+            //通过pendingIntent 延迟执行的意图  来处理通知的点击事件
+            PendingIntent pendingItent = PendingIntent.getActivities(getApplicationContext(), 1, intents, PendingIntent.FLAG_UPDATE_CURRENT);
+            //给通知设置点击事件
+            builder.setContentIntent(pendingItent);
+            //创建notification
+            Notification notification = builder.build();
+
+            NotificationChannel channel = new NotificationChannel(
+                    applicationContext.getPackageName(),
+                    "会话类型",//这块Android9.0分类的比较完整，你创建多个这样的东西，你可以在设置里边显示那个或者第几个
+                    NotificationManager.IMPORTANCE_DEFAULT
+
+            );
+
+            //通过 NotificationManager 发送通知
+            NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            manager.createNotificationChannel(channel);
+            manager.notify(1, notification);
+        } else {
+            //Android 8.0
+            Notification.Builder builder = new Notification.Builder(getApplicationContext());
+            //设置通知点击之后可以自动消失
+            builder.setAutoCancel(true);
+            //设置通知的小图标
+            builder.setSmallIcon(R.mipmap.message);
+            //设置通知的大标题
+            builder.setContentTitle("您有一条新消息需要处理");
+            //消息的内容
+            EMTextMessageBody body = (EMTextMessageBody) message.getBody();
+            //把消息的内容设置到通知的内容中
+            builder.setContentText(body.getMessage());
+            //设置一个大图标
+            builder.setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.avatar3));
+            builder.setContentInfo("来自" + message.getUserName());
+            //创建要打开的activity对应的意图
+            Intent mainActivityIntent = new Intent(getApplicationContext(), MainActivity.class);
+            Intent chatActivityIntent = new Intent(getApplicationContext(), ChatActivity.class);
+            chatActivityIntent.putExtra("contact", message.getUserName());
+            Intent[] intents = new Intent[]{mainActivityIntent, chatActivityIntent};
+            //通过pendingIntent 延迟执行的意图  来处理通知的点击事件
+            PendingIntent pendingItent = PendingIntent.getActivities(getApplicationContext(), 1, intents, PendingIntent.FLAG_UPDATE_CURRENT);
+            //给通知设置点击事件
+            builder.setContentIntent(pendingItent);
+            //创建notification
+            Notification notification = builder.build();
+            //通过 NotificationManager 发送通知
+            NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            manager.notify(1, notification);
+        }*/
     }
 
     /**
      * 判断当前的应用是否处于后台状态
-     * @param  //返回true说明应用处于后台
-     *  返回false 说明应用处于前台
+     *
+     * @param //返回true说明应用处于后台 返回false 说明应用处于前台
      */
     private boolean isInBackgoundState() {
         ActivityManager manager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
@@ -235,12 +331,12 @@ public class MyApplication extends Application {
         ActivityManager.RunningTaskInfo runningTaskInfo = runningTasks.get(0);
         //获取栈中的栈顶activity  根据activity的包名判断 是否是当前应用的包名
         ComponentName componentName = runningTaskInfo.topActivity;
-        if(componentName.getPackageName().equals(getPackageName())){
+        if (componentName.getPackageName().equals(getPackageName())) {
             //处于前台状态
             return false;
-        }else{
+        } else {
             //处于后台状态
-            return  true;
+            return true;
         }
     }
 
@@ -248,7 +344,7 @@ public class MyApplication extends Application {
         //soundpool 构造 第一个参数 这个池子中管理几个音频
         //第二个参数 音频的类型 一般传入AudioManager.STREAM_MUSIC
         //第三个参数 声音的采样频率 但是 没有用默认值使用0
-        soundPool = new SoundPool(2, AudioManager.STREAM_MUSIC,0);
+        soundPool = new SoundPool(2, AudioManager.STREAM_MUSIC, 0);
         foregoundSound = soundPool.load(getApplicationContext(), R.raw.duan, 1);
         backgoundSound = soundPool.load(getApplicationContext(), R.raw.yulu, 1);
     }
@@ -258,23 +354,23 @@ public class MyApplication extends Application {
         @Override
         public void onConnected() {
         }
+
         @Override
         public void onDisconnected(final int error) {
             ThreadUtils.runOnMainThread(new Runnable() {
 
                 @Override
                 public void run() {
-                    if(error == EMError.USER_REMOVED){
+                    if (error == EMError.USER_REMOVED) {
                         // 显示帐号已经被移除
                         EventBus.getDefault().post(new ExitEvent(EMError.USER_REMOVED));
-                    }else if (error == EMError.USER_LOGIN_ANOTHER_DEVICE) {
+                    } else if (error == EMError.USER_LOGIN_ANOTHER_DEVICE) {
                         // 显示帐号在其他设备登录
                         EventBus.getDefault().post(new ExitEvent(EMError.USER_LOGIN_ANOTHER_DEVICE));
                     } else {
-                        if (NetUtils.hasNetwork(getApplicationContext())){
+                        if (NetUtils.hasNetwork(getApplicationContext())) {
                             //连接不到聊天服务器
-                        }
-                        else{
+                        } else {
                             //当前网络不可用，请检查网络设置
                         }
                     }
@@ -282,7 +378,6 @@ public class MyApplication extends Application {
             });
         }
     }
-
 
 
 }
